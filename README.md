@@ -15,8 +15,11 @@
 - `/` 랜딩 페이지
 - `/create` 3단계 선택 입력 (에너지/사회성/압박감)
 - `/result` 결과 카드 렌더링
+- `/api/og` 결과 링크용 OG 이미지 생성
 - PNG 저장
 - Web Share API 공유 + 링크 복사 fallback
+- 카카오 SDK 공유 + 카카오 sharer fallback
+- 인스타 스토리 업로드 보조 플로우(저장 + 문구 복사 + 앱 열기)
 - 최근 결과 이어보기 (localStorage)
 
 ## 로컬 실행

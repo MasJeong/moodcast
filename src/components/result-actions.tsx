@@ -343,7 +343,7 @@ export function ResultActions({ cardRef, spec }: ResultActionsProps) {
           onClick={openKakaoShare}
           className="rounded-2xl bg-yellow-400 px-4 py-3 text-sm font-bold text-yellow-950 transition hover:bg-yellow-300"
         >
-          카카오톡 바로 공유
+          {kakaoReady ? "카카오톡 바로 공유" : "카카오 공유 열기"}
         </button>
         <button
           type="button"
@@ -353,6 +353,12 @@ export function ResultActions({ cardRef, spec }: ResultActionsProps) {
           인스타 업로드 준비
         </button>
       </div>
+
+      {!kakaoKey ? (
+        <p className="rounded-xl bg-yellow-50 px-3 py-2 text-[11px] leading-relaxed text-yellow-900">
+          카카오 JavaScript 키가 설정되지 않아 링크 공유 모드로 동작합니다.
+        </p>
+      ) : null}
 
       <p className="rounded-xl bg-slate-50 px-3 py-2 text-[11px] leading-relaxed text-slate-600">
         인스타는 외부 웹에서 직접 업로드가 제한되어 저장 + 문구 복사 + 인스타 열기 순서로 연결됩니다.
