@@ -7,6 +7,21 @@ type CardPreviewProps = {
 
 export function CardPreview({ spec }: CardPreviewProps) {
   const visual = getWeatherVisuals(spec.weather);
+  const variant = spec.turbulence % 3;
+
+  const frameByVariant =
+    variant === 0
+      ? "border-white/30 bg-black/20"
+      : variant === 1
+        ? "border-amber-200/60 bg-slate-900/25"
+        : "border-cyan-200/60 bg-indigo-900/30";
+
+  const chipByVariant =
+    variant === 0
+      ? "bg-white/20"
+      : variant === 1
+        ? "bg-amber-100/25"
+        : "bg-cyan-100/20";
 
   return (
     <article
@@ -26,11 +41,11 @@ export function CardPreview({ spec }: CardPreviewProps) {
           </span>
         </header>
 
-        <div className="mt-8 rounded-2xl bg-black/20 p-4 backdrop-blur-sm">
+        <div className={`mt-8 rounded-2xl border p-4 backdrop-blur-sm ${frameByVariant}`}>
           <p className="text-xs uppercase tracking-[0.2em] text-white/80">변동성 지수</p>
           <div className="mt-2 flex items-end justify-between">
             <p className="text-5xl font-black leading-none">{spec.turbulence}%</p>
-            <p className="rounded-full bg-white/20 px-3 py-1 text-xs font-semibold">{visual.label}</p>
+            <p className={`rounded-full px-3 py-1 text-xs font-semibold ${chipByVariant}`}>{visual.label}</p>
           </div>
         </div>
 

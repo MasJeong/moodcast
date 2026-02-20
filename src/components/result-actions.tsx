@@ -19,6 +19,16 @@ export function ResultActions({ cardRef, spec }: ResultActionsProps) {
     [spec.headline, spec.turbulence],
   );
 
+  const kakaoText = useMemo(
+    () => `카톡용: 오늘 내 멘탈 날씨는 ${spec.turbulence}% (${spec.headline}). 너도 테스트해봐!`,
+    [spec.headline, spec.turbulence],
+  );
+
+  const instaText = useMemo(
+    () => `인스타용: 오늘 내 멘탈 날씨 ${spec.turbulence}% ${spec.headline} #멘탈날씨카드 #오늘컨디션 #10초테스트`,
+    [spec.headline, spec.turbulence],
+  );
+
   const shareUrl = useMemo(() => {
     if (typeof window === "undefined") {
       return "";
@@ -27,6 +37,22 @@ export function ResultActions({ cardRef, spec }: ResultActionsProps) {
     const encoded = encodeCardSpec(spec);
     return `${window.location.origin}/result?s=${encoded}`;
   }, [spec]);
+
+  async function copyPlatformText(platform: "kakao" | "insta") {
+    try {
+      const text = platform === "kakao" ? kakaoText : instaText;
+
+      if (!navigator.clipboard) {
+        setMessage("클립보드 접근이 불가해요. 텍스트를 직접 복사해 주세요.");
+        return;
+      }
+
+      await navigator.clipboard.writeText(`${text} ${shareUrl}`.trim());
+      setMessage(platform === "kakao" ? "카카오톡용 문구를 복사했어요." : "인스타용 문구를 복사했어요.");
+    } catch {
+      setMessage("문구 복사에 실패했어요.");
+    }
+  }
 
   async function exportImage(): Promise<File | null> {
     if (!cardRef.current) {
@@ -47,7 +73,7 @@ export function ResultActions({ cardRef, spec }: ResultActionsProps) {
       return null;
     }
 
-    return new File([blob], `mental-weather-${spec.turbulence}.png`, { type: "image/png" });
+    return new File([blob], `moodcast-${spec.turbulence}.png`, { type: "image/png" });
   }
 
   async function onDownload() {
@@ -88,7 +114,7 @@ export function ResultActions({ cardRef, spec }: ResultActionsProps) {
 
       if (navigator.canShare?.({ files: [file] })) {
         await navigator.share({
-          title: "멘탈 날씨 카드",
+          title: "MoodCast",
           text: shareText,
           files: [file],
         });
@@ -149,6 +175,24 @@ export function ResultActions({ cardRef, spec }: ResultActionsProps) {
           className="rounded-2xl border border-cyan-300 bg-cyan-50 px-4 py-3 text-sm font-semibold text-cyan-900 transition hover:bg-cyan-100 disabled:cursor-not-allowed disabled:opacity-60"
         >
           링크 복사
+        </button>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <button
+          type="button"
+          onClick={() => copyPlatformText("kakao")}
+          disabled={busy}
+          className="rounded-2xl border border-yellow-300 bg-yellow-50 px-4 py-3 text-sm font-semibold text-yellow-900 transition hover:bg-yellow-100 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          카카오 문구 복사
+        </button>
+        <button
+          type="button"
+          onClick={() => copyPlatformText("insta")}
+          disabled={busy}
+          className="rounded-2xl border border-pink-300 bg-pink-50 px-4 py-3 text-sm font-semibold text-pink-900 transition hover:bg-pink-100 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          인스타 문구 복사
         </button>
       </div>
       {message ? <p className="text-center text-xs text-slate-600">{message}</p> : null}
