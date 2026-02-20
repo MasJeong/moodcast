@@ -41,9 +41,11 @@ bun run build
 
 ```bash
 NEXT_PUBLIC_SITE_URL=https://your-domain.vercel.app
+NEXT_PUBLIC_KAKAO_JS_KEY=your-kakao-javascript-key
 ```
 
 실서비스 도메인으로 설정하면 sitemap/robots URL이 올바르게 생성됩니다.
+카카오 공유를 쓰려면 카카오 디벨로퍼스에서 JavaScript 키 발급 후 사이트 도메인을 등록해야 합니다.
 
 ## Vercel 배포 준비
 
@@ -53,7 +55,8 @@ NEXT_PUBLIC_SITE_URL=https://your-domain.vercel.app
 2. Vercel에서 Import Project
 3. Framework Preset: Next.js
 4. Environment Variables에 `NEXT_PUBLIC_SITE_URL` 등록
-5. Deploy
+5. 카카오 공유를 사용할 경우 `NEXT_PUBLIC_KAKAO_JS_KEY` 등록
+6. Deploy
 
 ## 배포 후 체크리스트
 
