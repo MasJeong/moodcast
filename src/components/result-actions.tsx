@@ -1,39 +1,82 @@
 "use client";
 
-import { RefObject, useMemo, useState } from "react";
+import { RefObject, useEffect, useMemo, useState } from "react";
 import { toBlob } from "html-to-image";
 
 import { CardSpec, encodeCardSpec } from "@/lib/card-spec";
+import { buildShareDescription, buildShareTitle, getStatusTag, getWeatherEmoji } from "@/lib/share-copy";
 
 type ResultActionsProps = {
   cardRef: RefObject<HTMLElement | null>;
   spec: CardSpec;
 };
 
+type KakaoSharePayload = {
+  objectType: "feed";
+  content: {
+    title: string;
+    description: string;
+    imageUrl: string;
+    link: {
+      mobileWebUrl: string;
+      webUrl: string;
+    };
+  };
+  buttons: Array<{
+    title: string;
+    link: {
+      mobileWebUrl: string;
+      webUrl: string;
+    };
+  }>;
+};
+
+type KakaoSDK = {
+  isInitialized: () => boolean;
+  init: (appKey: string) => void;
+  Share: {
+    sendDefault: (payload: KakaoSharePayload) => void;
+  };
+};
+
+declare global {
+  interface Window {
+    Kakao?: KakaoSDK;
+  }
+}
+
 export function ResultActions({ cardRef, spec }: ResultActionsProps) {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
+  const [kakaoReady, setKakaoReady] = useState(false);
+
+  const kakaoKey = process.env.NEXT_PUBLIC_KAKAO_JS_KEY;
+
+  const shareParam = useMemo(() => encodeCardSpec(spec), [spec]);
+
+  const shareUrl = useMemo(() => {
+    if (typeof window === "undefined") {
+      return "";
+    }
+
+    return `${window.location.origin}/result?s=${shareParam}`;
+  }, [shareParam]);
+
+  const ogImageUrl = useMemo(() => {
+    if (typeof window === "undefined") {
+      return "";
+    }
+
+    return `${window.location.origin}/api/og?s=${shareParam}`;
+  }, [shareParam]);
+
+  const weatherEmoji = useMemo(() => getWeatherEmoji(spec.turbulence), [spec.turbulence]);
+  const statusTag = useMemo(() => getStatusTag(spec.turbulence), [spec.turbulence]);
 
   const shareText = useMemo(
     () => `내 멘탈 날씨는 ${spec.turbulence}% (${spec.headline})야. 너도 10초 안에 해봐.`,
     [spec.headline, spec.turbulence],
   );
-
-  const weatherEmoji = useMemo(() => {
-    if (spec.turbulence < 25) return "☀️";
-    if (spec.turbulence < 45) return "⛅";
-    if (spec.turbulence < 65) return "🌧️";
-    if (spec.turbulence < 82) return "⛈️";
-    return "🌀";
-  }, [spec.turbulence]);
-
-  const statusTag = useMemo(() => {
-    if (spec.turbulence < 25) return "오늘 컨디션 매우 좋음";
-    if (spec.turbulence < 45) return "오늘은 무난한 날";
-    if (spec.turbulence < 65) return "집중 관리 필요";
-    if (spec.turbulence < 82) return "과부하 주의";
-    return "생존 모드";
-  }, [spec.turbulence]);
 
   const kakaoText = useMemo(
     () => `${weatherEmoji} ${statusTag}\n오늘 내 멘탈 날씨 ${spec.turbulence}% (${spec.headline}) 떴어.\n너도 10초 테스트 해봐 👇`,
@@ -45,44 +88,46 @@ export function ResultActions({ cardRef, spec }: ResultActionsProps) {
     [spec.headline, spec.turbulence, statusTag, weatherEmoji],
   );
 
-  const shareUrl = useMemo(() => {
-    if (typeof window === "undefined") {
-      return "";
-    }
-
-    const encoded = encodeCardSpec(spec);
-    return `${window.location.origin}/result?s=${encoded}`;
-  }, [spec]);
-
-  function openKakaoShare() {
-    if (!shareUrl) {
-      setMessage("공유 링크가 아직 준비되지 않았어요.");
+  useEffect(() => {
+    if (!kakaoKey || typeof window === "undefined") {
       return;
     }
 
-    const encoded = encodeURIComponent(`${kakaoText}\n${shareUrl}`);
-    window.open(`https://sharer.kakao.com/talk/friends/picker/link?url=${encodeURIComponent(shareUrl)}&text=${encoded}`, "_blank");
-  }
+    const initialize = () => {
+      const sdk = window.Kakao;
 
-  function openInstagram() {
-    window.open("https://www.instagram.com/", "_blank");
-    setMessage("인스타 열었어요. 카드 저장 후 스토리에 올리고 문구를 붙여넣으세요.");
-  }
-
-  async function copyPlatformText(platform: "kakao" | "insta") {
-    try {
-      const text = platform === "kakao" ? kakaoText : instaText;
-
-      if (!navigator.clipboard) {
-        setMessage("클립보드 접근이 불가해요. 텍스트를 직접 복사해 주세요.");
+      if (!sdk) {
+        setKakaoReady(false);
         return;
       }
 
-      await navigator.clipboard.writeText(`${text} ${shareUrl}`.trim());
-      setMessage(platform === "kakao" ? "카카오톡용 문구를 복사했어요." : "인스타용 문구를 복사했어요.");
-    } catch {
-      setMessage("문구 복사에 실패했어요.");
+      if (!sdk.isInitialized()) {
+        sdk.init(kakaoKey);
+      }
+
+      setKakaoReady(true);
+    };
+
+    if (window.Kakao) {
+      initialize();
+      return;
     }
+
+    const script = document.createElement("script");
+    script.src = "https://developers.kakao.com/sdk/js/kakao.min.js";
+    script.async = true;
+    script.onload = initialize;
+    script.onerror = () => setMessage("카카오 SDK 로드에 실패했어요. 링크 공유로 진행해 주세요.");
+    document.head.appendChild(script);
+  }, [kakaoKey]);
+
+  function downloadFile(file: File) {
+    const url = URL.createObjectURL(file);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = file.name;
+    anchor.click();
+    URL.revokeObjectURL(url);
   }
 
   async function exportImage(): Promise<File | null> {
@@ -107,6 +152,16 @@ export function ResultActions({ cardRef, spec }: ResultActionsProps) {
     return new File([blob], `moodcast-${spec.turbulence}.png`, { type: "image/png" });
   }
 
+  async function copyToClipboard(text: string, successMessage: string) {
+    if (!navigator.clipboard) {
+      setMessage("클립보드 접근이 불가해요. 텍스트를 직접 복사해 주세요.");
+      return;
+    }
+
+    await navigator.clipboard.writeText(text);
+    setMessage(successMessage);
+  }
+
   async function onDownload() {
     setBusy(true);
     setMessage("");
@@ -118,12 +173,7 @@ export function ResultActions({ cardRef, spec }: ResultActionsProps) {
         return;
       }
 
-      const url = URL.createObjectURL(file);
-      const anchor = document.createElement("a");
-      anchor.href = url;
-      anchor.download = file.name;
-      anchor.click();
-      URL.revokeObjectURL(url);
+      downloadFile(file);
       setMessage("카드를 저장했어요.");
     } catch {
       setMessage("다운로드에 실패했어요.");
@@ -168,15 +218,74 @@ export function ResultActions({ cardRef, spec }: ResultActionsProps) {
         return;
       }
 
-      if (!navigator.clipboard) {
-        setMessage("클립보드 접근이 불가해요. 주소창 링크를 직접 복사해 주세요.");
+      await copyToClipboard(`${shareText} ${shareUrl}`.trim(), "공유 링크를 복사했어요.");
+    } catch {
+      setMessage("링크 복사에 실패했어요.");
+    }
+  }
+
+  async function copyPlatformText(platform: "kakao" | "insta") {
+    try {
+      const text = platform === "kakao" ? kakaoText : instaText;
+      await copyToClipboard(`${text} ${shareUrl}`.trim(), platform === "kakao" ? "카카오톡용 문구를 복사했어요." : "인스타용 문구를 복사했어요.");
+    } catch {
+      setMessage("문구 복사에 실패했어요.");
+    }
+  }
+
+  function openKakaoShare() {
+    if (!shareUrl) {
+      setMessage("공유 링크가 아직 준비되지 않았어요.");
+      return;
+    }
+
+    if (kakaoReady && window.Kakao) {
+      window.Kakao.Share.sendDefault({
+        objectType: "feed",
+        content: {
+          title: buildShareTitle(spec),
+          description: buildShareDescription(spec),
+          imageUrl: ogImageUrl,
+          link: {
+            mobileWebUrl: shareUrl,
+            webUrl: shareUrl,
+          },
+        },
+        buttons: [
+          {
+            title: "나도 테스트하기",
+            link: {
+              mobileWebUrl: shareUrl,
+              webUrl: shareUrl,
+            },
+          },
+        ],
+      });
+      return;
+    }
+
+    window.open(`https://sharer.kakao.com/talk/friends/picker/link?url=${encodeURIComponent(shareUrl)}`, "_blank");
+    setMessage("카카오 SDK 미설정 상태라 링크 공유로 열었어요.");
+  }
+
+  async function openInstagramFlow() {
+    setBusy(true);
+    setMessage("");
+
+    try {
+      const file = await exportImage();
+
+      if (!file) {
         return;
       }
 
-      await navigator.clipboard.writeText(`${shareText} ${shareUrl}`.trim());
-      setMessage("공유 링크를 복사했어요.");
+      downloadFile(file);
+      await copyToClipboard(instaText, "인스타 문구를 복사했어요. 스토리에 붙여넣어 주세요.");
+      window.open("https://www.instagram.com/", "_blank");
     } catch {
-      setMessage("링크 복사에 실패했어요.");
+      setMessage("인스타 준비 과정에서 오류가 발생했어요.");
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -208,6 +317,7 @@ export function ResultActions({ cardRef, spec }: ResultActionsProps) {
           링크 복사
         </button>
       </div>
+
       <div className="grid grid-cols-2 gap-3">
         <button
           type="button"
@@ -226,22 +336,28 @@ export function ResultActions({ cardRef, spec }: ResultActionsProps) {
           인스타 문구 복사
         </button>
       </div>
+
       <div className="grid grid-cols-2 gap-3">
         <button
           type="button"
           onClick={openKakaoShare}
           className="rounded-2xl bg-yellow-400 px-4 py-3 text-sm font-bold text-yellow-950 transition hover:bg-yellow-300"
         >
-          카카오 공유 열기
+          카카오톡 바로 공유
         </button>
         <button
           type="button"
-          onClick={openInstagram}
+          onClick={openInstagramFlow}
           className="rounded-2xl bg-gradient-to-r from-fuchsia-500 via-pink-500 to-amber-400 px-4 py-3 text-sm font-bold text-white transition hover:opacity-90"
         >
-          인스타 열기
+          인스타 업로드 준비
         </button>
       </div>
+
+      <p className="rounded-xl bg-slate-50 px-3 py-2 text-[11px] leading-relaxed text-slate-600">
+        인스타는 외부 웹에서 직접 업로드가 제한되어 저장 + 문구 복사 + 인스타 열기 순서로 연결됩니다.
+      </p>
+
       {message ? <p className="text-center text-xs text-slate-600">{message}</p> : null}
     </div>
   );
