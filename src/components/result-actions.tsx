@@ -19,14 +19,30 @@ export function ResultActions({ cardRef, spec }: ResultActionsProps) {
     [spec.headline, spec.turbulence],
   );
 
+  const weatherEmoji = useMemo(() => {
+    if (spec.turbulence < 25) return "☀️";
+    if (spec.turbulence < 45) return "⛅";
+    if (spec.turbulence < 65) return "🌧️";
+    if (spec.turbulence < 82) return "⛈️";
+    return "🌀";
+  }, [spec.turbulence]);
+
+  const statusTag = useMemo(() => {
+    if (spec.turbulence < 25) return "오늘 컨디션 매우 좋음";
+    if (spec.turbulence < 45) return "오늘은 무난한 날";
+    if (spec.turbulence < 65) return "집중 관리 필요";
+    if (spec.turbulence < 82) return "과부하 주의";
+    return "생존 모드";
+  }, [spec.turbulence]);
+
   const kakaoText = useMemo(
-    () => `카톡용: 오늘 내 멘탈 날씨는 ${spec.turbulence}% (${spec.headline}). 너도 테스트해봐!`,
-    [spec.headline, spec.turbulence],
+    () => `${weatherEmoji} ${statusTag}\n오늘 내 멘탈 날씨 ${spec.turbulence}% (${spec.headline}) 떴어.\n너도 10초 테스트 해봐 👇`,
+    [spec.headline, spec.turbulence, statusTag, weatherEmoji],
   );
 
   const instaText = useMemo(
-    () => `인스타용: 오늘 내 멘탈 날씨 ${spec.turbulence}% ${spec.headline} #멘탈날씨카드 #오늘컨디션 #10초테스트`,
-    [spec.headline, spec.turbulence],
+    () => `${weatherEmoji} 오늘의 멘탈 날씨: ${spec.turbulence}% ${spec.headline}\n${statusTag}\n\n#MoodCast #멘탈날씨카드 #오늘컨디션 #심리테스트 #스토리공유`,
+    [spec.headline, spec.turbulence, statusTag, weatherEmoji],
   );
 
   const shareUrl = useMemo(() => {
@@ -37,6 +53,21 @@ export function ResultActions({ cardRef, spec }: ResultActionsProps) {
     const encoded = encodeCardSpec(spec);
     return `${window.location.origin}/result?s=${encoded}`;
   }, [spec]);
+
+  function openKakaoShare() {
+    if (!shareUrl) {
+      setMessage("공유 링크가 아직 준비되지 않았어요.");
+      return;
+    }
+
+    const encoded = encodeURIComponent(`${kakaoText}\n${shareUrl}`);
+    window.open(`https://sharer.kakao.com/talk/friends/picker/link?url=${encodeURIComponent(shareUrl)}&text=${encoded}`, "_blank");
+  }
+
+  function openInstagram() {
+    window.open("https://www.instagram.com/", "_blank");
+    setMessage("인스타 열었어요. 카드 저장 후 스토리에 올리고 문구를 붙여넣으세요.");
+  }
 
   async function copyPlatformText(platform: "kakao" | "insta") {
     try {
@@ -193,6 +224,22 @@ export function ResultActions({ cardRef, spec }: ResultActionsProps) {
           className="rounded-2xl border border-pink-300 bg-pink-50 px-4 py-3 text-sm font-semibold text-pink-900 transition hover:bg-pink-100 disabled:cursor-not-allowed disabled:opacity-60"
         >
           인스타 문구 복사
+        </button>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <button
+          type="button"
+          onClick={openKakaoShare}
+          className="rounded-2xl bg-yellow-400 px-4 py-3 text-sm font-bold text-yellow-950 transition hover:bg-yellow-300"
+        >
+          카카오 공유 열기
+        </button>
+        <button
+          type="button"
+          onClick={openInstagram}
+          className="rounded-2xl bg-gradient-to-r from-fuchsia-500 via-pink-500 to-amber-400 px-4 py-3 text-sm font-bold text-white transition hover:opacity-90"
+        >
+          인스타 열기
         </button>
       </div>
       {message ? <p className="text-center text-xs text-slate-600">{message}</p> : null}
