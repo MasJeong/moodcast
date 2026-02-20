@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "멘탈 날씨 카드",
+  title: "MoodCast | 멘탈 날씨 카드",
   description: "세 번의 선택으로 지금 내 상태 카드를 만들고 공유해보세요.",
 };
 

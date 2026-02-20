@@ -1,4 +1,4 @@
-# 멘탈 날씨 카드 (Mental Weather Card)
+# MoodCast (멘탈 날씨 카드)
 
 3개의 버튼 선택으로 현재 상태를 카드로 만들고, PNG 저장/공유까지 가능한 Next.js 프로젝트입니다.
 
